@@ -1,0 +1,120 @@
+openapi: 3.0.0
+info:
+  title: Manus Bridge API
+  description: API specification for the communication between the Android Bridge and the AI Brain.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server for the AI Brain
+
+paths:
+  /bridge/v1/messages/incoming:
+    post:
+      summary: Report an incoming message from WhatsApp
+      description: Used by the Bridge to send new messages received on WhatsApp to the AI Brain for processing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomingMessage'
+      responses:
+        '202':
+          description: Message accepted for processing.
+        '400':
+          description: Invalid request body.
+
+  /bridge/v1/commands/next:
+    get:
+      summary: Fetch the next command to execute
+      description: Used by the Bridge to poll for new commands from the AI Brain, such as sending a message.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: A command to be executed by the Bridge. The body will be empty if there are no commands.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Command'
+        '401':
+          description: Unauthorized.
+
+components:
+  schemas:
+    Sender:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the sender (e.g., phone number).
+          example: "+14155552671"
+        name:
+          type: string
+          description: The name of the sender as displayed in WhatsApp.
+          example: "Worker Ben"
+
+    IncomingMessage:
+      type: object
+      required:
+        - sender
+        - message
+      properties:
+        sender:
+          $ref: '#/components/schemas/Sender'
+        message:
+          type: object
+          properties:
+            id:
+              type: string
+              description: The unique ID of the message from WhatsApp.
+            timestamp:
+              type: string
+              format: date-time
+              description: The timestamp of when the message was received.
+            type:
+              type: string
+              enum: [text, image, video, audio, file]
+              description: The type of the message.
+            content:
+              type: string
+              description: The text content of the message if type is 'text'.
+            media_url:
+              type: string
+              format: uri
+              description: A URL to the media file if the message type is not 'text'. The Bridge is responsible for hosting this file temporarily.
+
+    Command:
+      type: object
+      properties:
+        command_id:
+          type: string
+          format: uuid
+          description: A unique ID for the command.
+        type:
+          type: string
+          enum: [SEND_MESSAGE]
+          description: The type of command to execute.
+        payload:
+          type: object
+          properties:
+            recipient_id:
+              type: string
+              description: The phone number to send the message to.
+              example: "+14155552671"
+            message:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [text]
+                content:
+                  type: string
+                  description: The text content of the message to send.
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY

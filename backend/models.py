@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum,
     Boolean,
     Text,
+    Time,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -28,7 +29,12 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
 
+    # Fields for default worker availability
+    default_start_time = Column(Time, nullable=True)
+    default_end_time = Column(Time, nullable=True)
+
     jobs = relationship("Job", back_populates="worker")
+    availability_exceptions = relationship("WorkerAvailabilityException", back_populates="worker")
 
 class Client(Base):
     __tablename__ = "clients"
@@ -76,3 +82,16 @@ class Job(Base):
     scheduled_end_time = Column(DateTime(timezone=True), nullable=True)
     actual_start_time = Column(DateTime(timezone=True), nullable=True)
     actual_end_time = Column(DateTime(timezone=True), nullable=True)
+
+
+class WorkerAvailabilityException(Base):
+    __tablename__ = "worker_availability_exceptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    is_unavailable = Column(Boolean, default=True) # True for unavailable, False for specifically available
+    reason = Column(String, nullable=True)
+
+    worker_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    worker = relationship("User", back_populates="availability_exceptions")

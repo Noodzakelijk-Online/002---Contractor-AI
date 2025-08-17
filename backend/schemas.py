@@ -19,6 +19,8 @@ class JobBase(BaseModel):
 class UserBase(BaseModel):
     email: str
     full_name: Optional[str] = None
+    default_start_time: Optional[datetime.time] = None
+    default_end_time: Optional[datetime.time] = None
 
 class ToolBase(BaseModel):
     name: str
@@ -33,12 +35,33 @@ class ClientCreate(ClientBase):
 class JobCreate(JobBase):
     pass
 
+class JobUpdateStatus(BaseModel):
+    status: JobStatus
+
 class UserCreate(UserBase):
     password: str
     role: UserRole
 
 class ToolCreate(ToolBase):
     pass
+
+
+# Schemas for Worker Availability
+class WorkerAvailabilityExceptionBase(BaseModel):
+    start_time: datetime.datetime
+    end_time: datetime.datetime
+    is_unavailable: bool = True
+    reason: Optional[str] = None
+
+class WorkerAvailabilityExceptionCreate(WorkerAvailabilityExceptionBase):
+    worker_id: int
+
+class WorkerAvailabilityException(WorkerAvailabilityExceptionBase):
+    id: int
+    worker_id: int
+
+    class Config:
+        orm_mode = True
 
 
 # Schemas for reading (response body)

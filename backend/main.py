@@ -53,3 +53,47 @@ def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     jobs = crud.get_jobs(db, skip=skip, limit=limit)
     return jobs
+
+@app.get("/jobs/{job_id}", response_model=schemas.Job)
+def read_job(job_id: int, db: Session = Depends(get_db)):
+    db_job = crud.get_job(db, job_id=job_id)
+    if db_job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return db_job
+
+@app.patch("/jobs/{job_id}/status", response_model=schemas.Job)
+def update_job_status(
+    job_id: int,
+    status_update: schemas.JobUpdateStatus,
+    db: Session = Depends(get_db),
+):
+    job = crud.get_job(db, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    new_status = status_update.status
+    current_status = job.status
+
+    # State machine transition validation
+    valid_transitions = {
+        models.JobStatus.new_request: [models.JobStatus.approved, models.JobStatus.cancelled],
+        models.JobStatus.approved: [models.JobStatus.scheduled, models.JobStatus.cancelled],
+        models.JobStatus.scheduled: [models.JobStatus.in_progress, models.JobStatus.cancelled],
+        models.JobStatus.in_progress: [models.JobStatus.completed, models.JobStatus.cancelled],
+    }
+
+    if new_status not in valid_transitions.get(current_status, []):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status transition from {current_status.value} to {new_status.value}",
+        )
+
+    return crud.update_job_status(db=db, job=job, status=new_status)
+
+
+# Worker Availability Endpoints
+@app.post("/worker_availability_exceptions/", response_model=schemas.WorkerAvailabilityException)
+def create_worker_availability_exception(
+    exception: schemas.WorkerAvailabilityExceptionCreate, db: Session = Depends(get_db)
+):
+    return crud.create_worker_availability_exception(db=db, exception=exception)
